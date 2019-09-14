@@ -73,13 +73,8 @@ namespace vcpkg::Remove
                     if (ec)
                     {
 #if defined(_WIN32)
-                        fs::stdfs::permissions(target, fs::perms::owner_all | fs::perms::group_all, ec);
-                        fs.remove(target, ec);
-                        if (ec)
-                        {
-                            System::printf(
-                                System::Color::error, "failed: remove(%s): %s\n", target.u8string(), ec.message());
-                        }
+                        System::printf(
+                            System::Color::error, "failed: remove(%s): %s\n", target.u8string(), ec.message());
 #else
                         System::printf(
                             System::Color::error, "failed: remove(%s): %s\n", target.u8string(), ec.message());
