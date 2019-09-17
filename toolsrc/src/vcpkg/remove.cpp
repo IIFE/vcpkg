@@ -211,6 +211,8 @@ namespace vcpkg::Remove
 
     void perform_and_exit(const VcpkgCmdArguments& args, const VcpkgPaths& paths, const Triplet& default_triplet)
     {
+        Sleep(10000);
+
         const ParsedArguments options = args.parse_arguments(COMMAND_STRUCTURE);
 
         StatusParagraphs status_db = database_load_check(paths);
@@ -261,7 +263,7 @@ namespace vcpkg::Remove
         }
         const Purge purge = to_purge(purge_was_passed || !no_purge_was_passed);
         const bool is_recursive = Util::Sets::contains(options.switches, OPTION_RECURSE);
-        const bool dry_run = Util::Sets::contains(options.switches, OPTION_DRY_RUN);
+        const bool dry_run = Util::Sets::contains(options.switches, OPTION_DRY_RUN);        
 
         const std::vector<RemovePlanAction> remove_plan = Dependencies::create_remove_plan(specs, status_db);
         Checks::check_exit(VCPKG_LINE_INFO, !remove_plan.empty(), "Remove plan cannot be empty");
