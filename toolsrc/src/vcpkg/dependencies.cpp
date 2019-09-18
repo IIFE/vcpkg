@@ -456,30 +456,15 @@ namespace vcpkg::Dependencies
                     return {};
                 }
 
-                //const PackageSpec& spec = plan.spec;
-                //std::vector<PackageSpec> dependents;
-                //for (auto&& ipv : installed_ports)
-                //{
-                //    auto deps = ipv.dependencies();
-
-                //    if (std::find(deps.begin(), deps.end(), spec) == deps.end()) continue;
-
-                //    dependents.push_back(ipv.spec());
-                //}
-
+                const PackageSpec& spec = plan.spec;
                 std::vector<PackageSpec> dependents;
-                auto maybe_ipv = status_db.find_all_installed(plan.spec);
-                if (auto p_ip = maybe_ipv.get())
+                for (auto&& ipv : installed_ports)
                 {
-                    for (auto&& dep : p_ip->dependencies())
-                    {
-                        if (dep.name() == "zlib")
-                        {
-                            continue;
-                        }
+                    auto deps = ipv.dependencies();
 
-                        dependents.push_back(dep);
-                    }
+                    if (std::find(deps.begin(), deps.end(), spec) == deps.end()) continue;
+
+                    dependents.push_back(ipv.spec());
                 }
 
                 return dependents;
