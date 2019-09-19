@@ -387,6 +387,21 @@ namespace vcpkg::Files
         virtual void rename(const fs::path& oldpath, const fs::path& newpath, std::error_code& ec) override
         {
             fs::stdfs::rename(oldpath, newpath, ec);
+
+            const std::errc ecCode = static_cast<std::errc>(ec.value());
+
+            if (ec && std::errc::operation_not_permitted == ecCode && exists(newpath))
+            {
+                // If setting permissions fails, we should not affect the original ec error that occurred, ensuring the
+                // error reporting is specific to the operation called (i.e. rename)
+                std::error_code permEc;
+                fs::stdfs::permissions(newpath, fs::perms::owner_all | fs::perms::group_all, permEc);
+
+                if (!permEc)
+                {
+                    fs::stdfs::rename(oldpath, newpath, ec);
+                }
+            }
         }
         virtual void rename_or_copy(const fs::path& oldpath,
                                     const fs::path& newpath,
@@ -431,7 +446,8 @@ namespace vcpkg::Files
                             break;
                         }
                         auto remaining = read_bytes;
-                        while (remaining > 0) {
+                        while (remaining > 0)
+                        {
                             auto read_result = write(o_fd, buffer.get(), remaining);
                             if (read_result == -1)
                             {
@@ -443,7 +459,7 @@ namespace vcpkg::Files
                         }
                     }
 
-                    copy_failure: ;
+                copy_failure:;
                 }
 #endif
                 if (written_bytes == -1)
@@ -464,7 +480,27 @@ namespace vcpkg::Files
             }
 #endif
         }
-        virtual bool remove(const fs::path& path, std::error_code& ec) override { return fs::stdfs::remove(path, ec); }
+        virtual bool remove(const fs::path& path, std::error_code& ec) override
+        {
+            bool isRemoved = fs::stdfs::remove(path, ec);
+
+            const std::errc ecCode = static_cast<std::errc>(ec.value());
+
+            if (ec && std::errc::operation_not_permitted == ecCode && exists(path))
+            {
+                // If setting permissions fails, we should not affect the original ec error that occurred, ensuring the
+                // error reporting is specific to the operation called (i.e. remove)
+                std::error_code permEc;
+                fs::stdfs::permissions(path, fs::perms::owner_all | fs::perms::group_all, permEc);
+
+                if (!permEc)
+                {
+                    isRemoved = fs::stdfs::remove(path, ec);
+                }
+            }
+
+            return isRemoved;
+        }
         virtual void remove_all(const fs::path& path, std::error_code& ec, fs::path& failure_point) override
         {
             /*
