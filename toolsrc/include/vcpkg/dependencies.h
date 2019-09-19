@@ -81,10 +81,15 @@ namespace vcpkg::Dependencies
 
         RemovePlanAction() noexcept;
         RemovePlanAction(const PackageSpec& spec, const RemovePlanType& plan_type, const RequestType& request_type);
+        RemovePlanAction(const PackageSpec& spec, const RemovePlanType& plan_type, const RequestType& request_type,
+                         const Optional<InstalledPackageView>& installed_package);
+
+        std::vector<PackageSpec> dependencies(const Triplet& triplet) const;
 
         PackageSpec spec;
         RemovePlanType plan_type;
         RequestType request_type;
+        Optional<InstalledPackageView> m_installed_package;
     };
 
     struct AnyAction
@@ -181,6 +186,9 @@ namespace vcpkg::Dependencies
     };
 
     std::vector<RemovePlanAction> create_remove_plan(const std::vector<PackageSpec>& specs,
+                                                     const StatusParagraphs& status_db);
+
+    std::vector<RemovePlanAction> create_remove_deps_plan(const std::vector<PackageSpec>& specs,
                                                      const StatusParagraphs& status_db);
 
     std::vector<ExportPlanAction> create_export_plan(const std::vector<PackageSpec>& specs,

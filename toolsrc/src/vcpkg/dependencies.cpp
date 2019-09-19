@@ -232,6 +232,22 @@ namespace vcpkg::Dependencies
     {
     }
 
+    RemovePlanAction::RemovePlanAction(const PackageSpec& spec,
+                                       const RemovePlanType& plan_type,
+                                       const RequestType& request_type,
+                                       const Optional<InstalledPackageView>& installed_package)
+        : spec(spec), plan_type(plan_type), request_type(request_type), m_installed_package(installed_package)
+    {
+    }
+
+    std::vector<PackageSpec> RemovePlanAction::dependencies(const Triplet&) const
+    {
+        if (auto p_ip = m_installed_package.get())
+            return p_ip->dependencies();
+        else
+            return {};
+    }
+
     const PackageSpec& AnyAction::spec() const
     {
         if (const auto p = install_action.get())
@@ -490,6 +506,50 @@ namespace vcpkg::Dependencies
         const std::unordered_set<PackageSpec> specs_as_set(specs.cbegin(), specs.cend());
         return Graphs::topological_sort(specs, RemoveAdjacencyProvider{status_db, installed_ports, specs_as_set}, {});
     }
+
+    std::vector<RemovePlanAction> create_remove_deps_plan(const std::vector<PackageSpec>& specs,
+                                                     const StatusParagraphs& status_db)
+    {
+        struct RemoveDepsProvider final : Graphs::AdjacencyProvider<PackageSpec, RemovePlanAction>
+        {
+            const StatusParagraphs& status_db;
+            const std::unordered_set<PackageSpec>& specs_as_set;
+
+            RemoveDepsProvider(const StatusParagraphs& status_db,
+                                    const std::unordered_set<PackageSpec>& specs_as_set)
+                : status_db(status_db)
+                , specs_as_set(specs_as_set)
+            {
+            }
+
+            std::vector<PackageSpec> adjacency_list(const RemovePlanAction& plan) const override
+            {
+                return plan.dependencies(plan.spec.triplet());
+            }
+
+            RemovePlanAction load_vertex_data(const PackageSpec& spec) const override
+            {
+                const RequestType request_type = specs_as_set.find(spec) != specs_as_set.end()
+                                                     ? RequestType::USER_REQUESTED
+                                                     : RequestType::AUTO_SELECTED;
+                const StatusParagraphs::const_iterator it = status_db.find_installed(spec);
+                if (it == status_db.end())
+                {
+                    return RemovePlanAction{spec, RemovePlanType::NOT_INSTALLED, request_type};
+                }
+
+                return RemovePlanAction{
+                    spec, RemovePlanType::REMOVE, request_type, status_db.find_all_installed(spec)};
+            }
+
+            std::string to_string(const PackageSpec& spec) const override { return spec.to_string(); }
+        };
+
+        const std::unordered_set<PackageSpec> specs_as_set(specs.cbegin(), specs.cend());
+        return Graphs::topological_sort(
+            specs, RemoveDepsProvider{status_db, specs_as_set}, {});
+    }
+
 
     std::vector<ExportPlanAction> create_export_plan(const std::vector<PackageSpec>& specs,
                                                      const StatusParagraphs& status_db)
