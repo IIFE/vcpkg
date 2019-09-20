@@ -322,7 +322,7 @@ CMake projects should use: "-DCMAKE_TOOLCHAIN_FILE=%s"
     }
 
 #if defined(WIN32)
-    static void integrate_project(const VcpkgPaths& paths)
+    static void integrate_project(const VcpkgPaths& paths, const Optional<std::string>& nuget_id_override)
     {
         auto& fs = paths.get_filesystem();
 
@@ -337,7 +337,9 @@ CMake projects should use: "-DCMAKE_TOOLCHAIN_FILE=%s"
         const fs::path targets_file_path = tmp_dir / "vcpkg.nuget.targets";
         const fs::path props_file_path = tmp_dir / "vcpkg.nuget.props";
         const fs::path nuspec_file_path = tmp_dir / "vcpkg.nuget.nuspec";
-        const std::string nuget_id = get_nuget_id(paths.root);
+
+        const auto nio = nuget_id_override.get();
+        const std::string nuget_id = nio ? *nio : get_nuget_id(paths.root);
         const std::string nupkg_version = "1.0.0";
 
         fs.write_contents(
@@ -447,11 +449,12 @@ With a project open, go to Tools->NuGet Package Manager->Package Manager Console
 
 #if defined(_WIN32)
     const char* const INTEGRATE_COMMAND_HELPSTRING =
-        "  vcpkg integrate install         Make installed packages available user-wide. Requires admin privileges on "
+        "  vcpkg integrate install              Make installed packages available user-wide. Requires admin privileges on "
         "first use\n"
-        "  vcpkg integrate remove          Remove user-wide integration\n"
-        "  vcpkg integrate project         Generate a referencing nuget package for individual VS project use\n"
-        "  vcpkg integrate powershell      Enable PowerShell tab-completion\n";
+        "  vcpkg integrate remove               Remove user-wide integration\n"
+        "  vcpkg integrate project              Generate a referencing nuget package for individual VS project use\n"
+        "  vcpkg integrate project <nuget-id>   Generate a referencing nuget package for individual VS project use. Allows custom NuGet ID to be provided instead of default one\n"
+        "  vcpkg integrate powershell           Enable PowerShell tab-completion\n";
 #else
     const char* const INTEGRATE_COMMAND_HELPSTRING =
         "  vcpkg integrate install         Make installed packages available user-wide.\n"
@@ -486,7 +489,7 @@ With a project open, go to Tools->NuGet Package Manager->Package Manager Console
                         "%s",
                         INTEGRATE_COMMAND_HELPSTRING),
         1,
-        1,
+        2,
         {},
         &valid_arguments,
     };
@@ -506,7 +509,12 @@ With a project open, go to Tools->NuGet Package Manager->Package Manager Console
 #if defined(_WIN32)
         if (args.command_arguments[0] == Subcommand::PROJECT)
         {
-            return integrate_project(paths);
+            if(args.command_arguments.size() == 2)
+            {
+                return integrate_project(paths, args.command_arguments[1]);
+            }
+
+            return integrate_project(paths, nullopt);
         }
         if (args.command_arguments[0] == Subcommand::POWERSHELL)
         {
