@@ -192,7 +192,7 @@ namespace vcpkg::Remove
         {OPTION_RECURSE, "Allow removal of packages not explicitly specified on the command line"},
         {OPTION_DRY_RUN, "Print the packages to be removed, but do not remove them"},
         {OPTION_OUTDATED, "Select all packages with versions that do not match the portfiles"},
-        {REMOVE_DEPS, "Remove all dependencies of package being removed"},
+        {REMOVE_DEPS, "Remove all dependencies of package being removed. This will also remove packages that depend on the dependencies being removed"},
     }};
 
     static std::vector<std::string> valid_arguments(const VcpkgPaths& paths)
@@ -210,12 +210,6 @@ namespace vcpkg::Remove
         {SWITCHES, {}},
         &valid_arguments,
     };
-
-    bool compare_removal_plan_action(const RemovePlanAction& lhs, const RemovePlanAction& rhs)
-    {
-        return (lhs.spec.name() < rhs.spec.name()) ||
-        ((lhs.spec.name() == rhs.spec.name()) && (lhs.spec.triplet() < rhs.spec.triplet()));
-    }
 
     void perform_and_exit(const VcpkgCmdArguments& args, const VcpkgPaths& paths, const Triplet& default_triplet)
     {
@@ -271,36 +265,20 @@ namespace vcpkg::Remove
         const bool is_recursive = Util::Sets::contains(options.switches, OPTION_RECURSE);
         const bool dry_run = Util::Sets::contains(options.switches, OPTION_DRY_RUN);
 
-        const bool removeDeps = Util::Sets::contains(options.switches, REMOVE_DEPS);
+        const bool remove_dependencies = Util::Sets::contains(options.switches, REMOVE_DEPS);
 
-        std::set<RemovePlanAction, decltype(&compare_removal_plan_action)> unique_remove_plan(&compare_removal_plan_action);
+        const std::vector<RemovePlanAction> remove_plan = Dependencies::create_remove_plan(specs, status_db, remove_dependencies);
 
-        std::vector<RemovePlanAction> remove_plan = Dependencies::create_remove_plan(specs, status_db);
-
-        for(auto&& action: remove_plan)
-        {
-            unique_remove_plan.insert(std::move(action));
-        }
-
-        if(removeDeps)
-        {
-            std::vector<RemovePlanAction> remove_deps_plan = Dependencies::create_remove_deps_plan(specs, status_db);
-            for(auto&& action: remove_deps_plan)
-            {
-                unique_remove_plan.insert(std::move(action));
-            }
-        }
-
-        Checks::check_exit(VCPKG_LINE_INFO, !unique_remove_plan.empty(), "Remove plan cannot be empty");
+        Checks::check_exit(VCPKG_LINE_INFO, !remove_plan.empty(), "Remove plan cannot be empty");
 
         std::map<RemovePlanType, std::vector<const RemovePlanAction*>> group_by_plan_type;
-        Util::group_by(unique_remove_plan, &group_by_plan_type, [](const RemovePlanAction& p) { return p.plan_type; });
+        Util::group_by(remove_plan, &group_by_plan_type, [](const RemovePlanAction& p) { return p.plan_type; });
         print_plan(group_by_plan_type);
 
         const bool has_non_user_requested_packages =
-            Util::find_if(unique_remove_plan, [](const RemovePlanAction& package) -> bool {
+            Util::find_if(remove_plan, [](const RemovePlanAction& package) -> bool {
                 return package.request_type != RequestType::USER_REQUESTED;
-            }) != unique_remove_plan.cend();
+            }) != remove_plan.cend();
 
         if (has_non_user_requested_packages)
         {
@@ -320,7 +298,7 @@ namespace vcpkg::Remove
             Checks::exit_success(VCPKG_LINE_INFO);
         }
 
-        for (const RemovePlanAction& action : unique_remove_plan)
+        for (const RemovePlanAction& action : remove_plan)
         {
             perform_remove_plan_action(paths, action, purge, &status_db);
         }

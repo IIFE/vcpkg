@@ -25,7 +25,7 @@ namespace vcpkg::Graphs
     template<class V, class U>
     struct AdjacencyProvider
     {
-        virtual std::vector<V> adjacency_list(const U& vertex) const = 0;
+        virtual std::vector<V> adjacency_list(const U& vertex, const std::vector<V>& visited) const = 0;
         virtual std::string to_string(const V& vertex) const = 0;
         virtual U load_vertex_data(const V& vertex) const = 0;
     };
@@ -81,7 +81,7 @@ namespace vcpkg::Graphs
                 {
                     status = ExplorationStatus::PARTIALLY_EXPLORED;
                     U vertex_data = f.load_vertex_data(vertex);
-                    auto neighbours = f.adjacency_list(vertex_data);
+                    auto neighbours = f.adjacency_list(vertex_data, Util::extract_keys(exploration_status));
                     details::shuffle(neighbours, randomizer);
                     for (const V& neighbour : neighbours)
                         topological_sort_internal(neighbour, f, exploration_status, sorted, randomizer);
@@ -133,7 +133,7 @@ namespace vcpkg::Graphs
             return vertex_list;
         }
 
-        std::vector<V> adjacency_list(const V& vertex) const override
+        std::vector<V> adjacency_list(const V& vertex, const std::vector<V>&) const override
         {
             const std::unordered_set<V>& as_set = this->m_edges.at(vertex);
             return std::vector<V>(as_set.cbegin(), as_set.cend()); // TODO: Avoid redundant copy
