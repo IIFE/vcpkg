@@ -192,7 +192,9 @@ namespace vcpkg::Remove
         {OPTION_RECURSE, "Allow removal of packages not explicitly specified on the command line"},
         {OPTION_DRY_RUN, "Print the packages to be removed, but do not remove them"},
         {OPTION_OUTDATED, "Select all packages with versions that do not match the portfiles"},
-        {REMOVE_DEPS, "Remove all dependencies of package being removed. This will also remove packages that depend on the dependencies being removed"},
+        {REMOVE_DEPS,
+         "Remove all dependencies of package being removed. This will also remove packages that depend on the "
+         "dependencies being removed"},
     }};
 
     static std::vector<std::string> valid_arguments(const VcpkgPaths& paths)
@@ -267,7 +269,8 @@ namespace vcpkg::Remove
 
         const bool remove_dependencies = Util::Sets::contains(options.switches, REMOVE_DEPS);
 
-        const std::vector<RemovePlanAction> remove_plan = Dependencies::create_remove_plan(specs, status_db, remove_dependencies);
+        const std::vector<RemovePlanAction> remove_plan =
+            Dependencies::create_remove_plan(specs, status_db, remove_dependencies);
 
         Checks::check_exit(VCPKG_LINE_INFO, !remove_plan.empty(), "Remove plan cannot be empty");
 

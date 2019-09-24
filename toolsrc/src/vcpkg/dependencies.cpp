@@ -448,24 +448,28 @@ namespace vcpkg::Dependencies
                                     const std::vector<InstalledPackageView>& installed_ports,
                                     const std::unordered_set<PackageSpec>& specs_as_set,
                                     const bool remove_dependencies)
-                : status_db(status_db), installed_ports(installed_ports), specs_as_set(specs_as_set), remove_dependencies(remove_dependencies)
+                : status_db(status_db)
+                , installed_ports(installed_ports)
+                , specs_as_set(specs_as_set)
+                , remove_dependencies(remove_dependencies)
             {
             }
 
             void AddDependenciesToRemove(const PackageSpec& package_to_remve,
-                std::vector<PackageSpec>& current_adjacency_list,
-                const std::vector<PackageSpec>& visited_adjacency_list) const
+                                         std::vector<PackageSpec>& current_adjacency_list,
+                                         const std::vector<PackageSpec>& visited_adjacency_list) const
             {
                 Optional<InstalledPackageView> spec_package_view = status_db.find_all_installed(package_to_remve);
                 if (auto p_ipv = spec_package_view.get())
                 {
                     const auto dependencies = p_ipv->dependencies();
-                    for(const auto& dep: dependencies)
+                    for (const auto& dep : dependencies)
                     {
-                        const auto spec_it = std::find_if(visited_adjacency_list.begin(), visited_adjacency_list.end(),
-                                [&dep](const auto& p_spec) { return dep == p_spec; });
+                        const auto spec_it = std::find_if(visited_adjacency_list.begin(),
+                                                          visited_adjacency_list.end(),
+                                                          [&dep](const auto& p_spec) { return dep == p_spec; });
 
-                        if(spec_it == visited_adjacency_list.end())
+                        if (spec_it == visited_adjacency_list.end())
                         {
                             current_adjacency_list.push_back(dep);
                         }
@@ -474,7 +478,7 @@ namespace vcpkg::Dependencies
             }
 
             std::vector<PackageSpec> adjacency_list(const RemovePlanAction& plan,
-                const std::vector<PackageSpec>& visited) const override
+                                                    const std::vector<PackageSpec>& visited) const override
             {
                 if (plan.plan_type == RemovePlanType::NOT_INSTALLED)
                 {
@@ -489,16 +493,16 @@ namespace vcpkg::Dependencies
 
                     if (std::find(deps.begin(), deps.end(), spec) == deps.end()) continue;
 
-                    const auto spec_it = std::find_if(visited.begin(), visited.end(),
-                        [&ipv](const auto& p_spec) { return ipv.spec() == p_spec; });
+                    const auto spec_it = std::find_if(
+                        visited.begin(), visited.end(), [&ipv](const auto& p_spec) { return ipv.spec() == p_spec; });
 
-                    if(spec_it == visited.end())
+                    if (spec_it == visited.end())
                     {
                         dependents.push_back(ipv.spec());
                     }
                 }
 
-                if(remove_dependencies)
+                if (remove_dependencies)
                 {
                     AddDependenciesToRemove(spec, dependents, visited);
                 }
@@ -524,7 +528,8 @@ namespace vcpkg::Dependencies
 
         auto installed_ports = get_installed_ports(status_db);
         const std::unordered_set<PackageSpec> specs_as_set(specs.cbegin(), specs.cend());
-        return Graphs::topological_sort(specs, RemoveAdjacencyProvider{status_db, installed_ports, specs_as_set, remove_dependencies}, {});
+        return Graphs::topological_sort(
+            specs, RemoveAdjacencyProvider{status_db, installed_ports, specs_as_set, remove_dependencies}, {});
     }
 
     std::vector<ExportPlanAction> create_export_plan(const std::vector<PackageSpec>& specs,
@@ -541,7 +546,7 @@ namespace vcpkg::Dependencies
             }
 
             std::vector<PackageSpec> adjacency_list(const ExportPlanAction& plan,
-            const std::vector<PackageSpec>&) const override
+                                                    const std::vector<PackageSpec>&) const override
             {
                 return plan.dependencies(plan.spec.triplet());
             }
